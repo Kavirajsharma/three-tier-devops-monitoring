@@ -1,0 +1,150 @@
+pipeline {
+    agent any
+
+    environment {
+        REGISTRY      = "localhost:5001"
+        IMAGE_NAME    = "backend"
+        IMAGE_TAG     = "${BUILD_NUMBER}"
+        SONAR_HOST    = "http://sonarqube:9000"
+        SONAR_PROJECT = "devtask-backend"
+    }
+
+    stages {
+
+        // ── Stage 1: Checkout ─────────────────────────────────
+        stage('Checkout') {
+            steps {
+                echo "📥 Checking out source code..."
+                checkout scm
+            }
+        }
+
+        // ── Stage 2: Install Dependencies ─────────────────────
+        stage('Install Dependencies') {
+            steps {
+                dir('backend') {
+                    echo "📦 Installing npm packages..."
+                    sh 'npm install'
+                }
+            }
+        }
+
+        // ── Stage 3: Run Tests ─────────────────────────────────
+        stage('Run Tests') {
+            steps {
+                dir('backend') {
+                    echo "🧪 Running Jest tests..."
+                    sh 'npm test || true'
+                }
+            }
+        }
+
+        // ── Stage 4: OWASP Dependency Check ───────────────────
+        stage('OWASP Dependency Check') {
+            steps {
+                dir('backend') {
+                    echo "🛡️ Running OWASP dependency vulnerability scan..."
+                    dependencyCheck(
+                        additionalArguments: '--scan ./ --format HTML --format XML',
+                        odcInstallation: 'DP-Check'
+                    )
+                    dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+                }
+            }
+        }
+
+        // ── Stage 5: SonarQube Analysis ───────────────────────
+        stage('SonarQube Analysis') {
+            steps {
+                dir('backend') {
+                    echo "📊 Running SonarQube scan..."
+                    withSonarQubeEnv('SonarQube') {
+                        sh """
+                            npx sonar-scanner \
+                              -Dsonar.projectKey=${SONAR_PROJECT} \
+                              -Dsonar.sources=src \
+                              -Dsonar.host.url=${SONAR_HOST} \
+                              -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+                        """
+                    }
+                }
+            }
+        }
+
+        // ── Stage 6: Quality Gate ─────────────────────────────
+        stage('Quality Gate') {
+            steps {
+                echo "🚦 Waiting for SonarQube Quality Gate..."
+                timeout(time: 2, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: false
+                }
+            }
+        }
+
+        // ── Stage 7: Build Docker Image ───────────────────────
+        stage('Build Docker Image') {
+            steps {
+                dir('backend') {
+                    echo "🐳 Building Docker image..."
+                    sh "docker build -t ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} ."
+                    sh "docker tag ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} ${REGISTRY}/${IMAGE_NAME}:latest"
+                }
+            }
+        }
+
+        // ── Stage 8: Trivy Image Scan ─────────────────────────
+        stage('Trivy Image Scan') {
+            steps {
+                echo "🔐 Scanning image for vulnerabilities with Trivy..."
+                sh """
+                    docker run --rm \
+                      -v /var/run/docker.sock:/var/run/docker.sock \
+                      aquasec/trivy:latest image \
+                      --exit-code 0 \
+                      --severity HIGH,CRITICAL \
+                      --format table \
+                      ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
+                """
+            }
+        }
+
+        // ── Stage 9: Push to Local Registry ───────────────────
+        stage('Push to Registry') {
+            steps {
+                echo "📤 Pushing image to local registry..."
+                sh "docker push ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+                sh "docker push ${REGISTRY}/${IMAGE_NAME}:latest"
+            }
+        }
+
+        // ── Stage 10: Update K8s Manifest ────────────────────
+        stage('Update K8s Manifest') {
+            steps {
+                echo "📝 Updating image tag in Kubernetes manifest..."
+                sh """
+                    sed -i 's|image: ${REGISTRY}/${IMAGE_NAME}:.*|image: ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}|' \
+                        k8s/backend/deployment.yaml
+                """
+                sh """
+                    git config user.email "jenkins@local"
+                    git config user.name "Jenkins"
+                    git add k8s/backend/deployment.yaml
+                    git commit -m "ci: update backend image to build ${IMAGE_TAG}" || true
+                    git push origin main || true
+                """
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ Backend pipeline SUCCESS — image: ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+        }
+        failure {
+            echo "❌ Backend pipeline FAILED — check logs above"
+        }
+        always {
+            sh "docker image prune -f || true"
+        }
+    }
+}

@@ -1,0 +1,137 @@
+version: '3.8'
+
+services:
+  # ── MongoDB ─────────────────────────────────────────────────
+  mongodb:
+    image: mongo:7
+    container_name: devtask-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: devtaskdb
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - devtask-net
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/devtaskdb --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Backend ─────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: devtask-backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      PORT: 5000
+      MONGO_URI: mongodb://mongodb:27017/devtaskdb
+      NODE_ENV: production
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - devtask-net
+    healthcheck:
+      test: wget -qO- http://localhost:5000/health || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ── Frontend ─────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://localhost:5000
+    container_name: devtask-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - devtask-net
+
+  # ── Jenkins ──────────────────────────────────────────────────
+  jenkins:
+    image: jenkins/jenkins:lts
+    container_name: devtask-jenkins
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins-data:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      JAVA_OPTS: "-Djenkins.install.runSetupWizard=false"
+    networks:
+      - devtask-net
+
+  # ── SonarQube ────────────────────────────────────────────────
+  sonarqube:
+    image: sonarqube:community
+    container_name: devtask-sonarqube
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    environment:
+      SONAR_JDBC_URL: jdbc:postgresql://sonar-db:5432/sonar
+      SONAR_JDBC_USERNAME: sonar
+      SONAR_JDBC_PASSWORD: sonar
+    depends_on:
+      - sonar-db
+    volumes:
+      - sonarqube-data:/opt/sonarqube/data
+      - sonarqube-logs:/opt/sonarqube/logs
+    networks:
+      - devtask-net
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+
+  sonar-db:
+    image: postgres:15
+    container_name: devtask-sonar-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sonar
+      POSTGRES_PASSWORD: sonar
+      POSTGRES_DB: sonar
+    volumes:
+      - sonar-db-data:/var/lib/postgresql/data
+    networks:
+      - devtask-net
+
+  # ── Local Docker Registry ────────────────────────────────────
+  registry:
+    image: registry:2
+    container_name: devtask-registry
+    restart: unless-stopped
+    ports:
+      - "5001:5000"
+    volumes:
+      - registry-data:/var/lib/registry
+    networks:
+      - devtask-net
+
+volumes:
+  mongo-data:
+  jenkins-data:
+  sonarqube-data:
+  sonarqube-logs:
+  sonar-db-data:
+  registry-data:
+
+networks:
+  devtask-net:
+    driver: bridge
