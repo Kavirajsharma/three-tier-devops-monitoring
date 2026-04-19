@@ -61,13 +61,17 @@ services:
       - devtask-net
 
   # ── Jenkins ──────────────────────────────────────────────────
+    # ── Jenkins ──────────────────────────────────────────────────
   jenkins:
-    image: jenkins/jenkins:lts-jdk17
-    dns:
-    - 8.8.8.8
-    - 8.8.4.4
+    build:
+      context: .
+      dockerfile: jenkins/Dockerfile
     container_name: devtask-jenkins
+    user: root
     restart: unless-stopped
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     ports:
       - "8081:8080"
       - "50000:50000"
