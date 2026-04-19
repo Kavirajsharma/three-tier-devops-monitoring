@@ -1,7 +1,6 @@
 version: '3.8'
 
 services:
-  # ── MongoDB ─────────────────────────────────────────────────
   mongodb:
     image: mongo:7
     container_name: devtask-mongo
@@ -15,10 +14,11 @@ services:
     networks:
       - devtask-net
     healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/devtaskdb --quiet
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
 
   # ── Backend ─────────────────────────────────────────────────
   backend:

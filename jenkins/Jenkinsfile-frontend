@@ -5,7 +5,7 @@ pipeline {
         REGISTRY      = "localhost:5001"
         IMAGE_NAME    = "frontend"
         IMAGE_TAG     = "${BUILD_NUMBER}"
-        SONAR_HOST    = "http://sonarqube:9000"
+        SONAR_HOST    = "http://devtask-sonarqube:9000""
         SONAR_PROJECT = "devtask-frontend"
     }
 
