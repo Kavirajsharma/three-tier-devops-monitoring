@@ -67,7 +67,6 @@ services:
       context: .
       dockerfile: jenkins/Dockerfile
     container_name: devtask-jenkins
-    user: root
     restart: unless-stopped
     dns:
       - 8.8.8.8
