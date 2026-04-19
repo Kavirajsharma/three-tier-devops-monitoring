@@ -62,7 +62,7 @@ services:
 
   # ── Jenkins ──────────────────────────────────────────────────
   jenkins:
-    image: jenkins/jenkins:lts
+    image: jenkins/jenkins:lts-jdk17
     dns:
     - 8.8.8.8
     - 8.8.4.4
