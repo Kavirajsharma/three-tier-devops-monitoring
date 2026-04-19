@@ -63,6 +63,9 @@ services:
   # ── Jenkins ──────────────────────────────────────────────────
   jenkins:
     image: jenkins/jenkins:lts
+    dns:
+    - 8.8.8.8
+    - 8.8.4.4
     container_name: devtask-jenkins
     restart: unless-stopped
     ports:
