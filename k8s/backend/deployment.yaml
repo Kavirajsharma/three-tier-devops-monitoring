@@ -30,10 +30,8 @@ spec:
     spec:
       containers:
         - name: backend
-          image: localhost:5001/backend:latest
-          # For Minikube with local registry:
-          # image: localhost:5001/backend:latest
-          imagePullPolicy: Always
+          image: backend:latest
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5000
           envFrom:

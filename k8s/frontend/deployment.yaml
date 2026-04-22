@@ -28,8 +28,8 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: localhost:5001/frontend:latest
-          imagePullPolicy: Always
+          image: frontend:latest
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
           resources:
