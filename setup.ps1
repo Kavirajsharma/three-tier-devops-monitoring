@@ -8,7 +8,7 @@ Write-Host "=============================================" -ForegroundColor Cyan
 Write-Host "  DevSecOps Local Setup - Windows" -ForegroundColor Cyan
 Write-Host "=============================================" -ForegroundColor Cyan
 Write-Host ""
-
+ 
 # ── Helper function ───────────────────────────────────────────
 function Check-Command($cmd) {
     return (Get-Command $cmd -ErrorAction SilentlyContinue) -ne $null
