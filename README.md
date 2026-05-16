@@ -1,4 +1,4 @@
-# 🚀 DevSecOps Three-Tier Project — Local Setup (Windows)
+# 🚀 DevSecOps Three-Tier Project — Local Setup (Windows) for ShipGlobal
 
 A full DevSecOps pipeline running **100% locally** on Windows using Docker, Minikube, Jenkins, ArgoCD, Prometheus, and Grafana. No AWS required.
 
