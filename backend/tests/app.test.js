@@ -6,7 +6,7 @@ jest.mock('mongoose', () => {
   const actual = jest.requireActual('mongoose');
   return {
     ...actual,
-    connect: jest.fn().mockResolvedValue(true),
+    connect: jest.fn().mockResolvedValue(true), 
     connection: { readyState: 1 }
   };
 });
