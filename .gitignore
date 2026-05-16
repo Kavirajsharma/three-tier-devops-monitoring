@@ -7,7 +7,7 @@ npm-debug.log*
 frontend/dist/
 frontend/build/
 
-# Environment files
+# Environment files 
 .env
 .env.local
 .env.production
